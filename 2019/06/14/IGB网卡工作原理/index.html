@@ -3,7 +3,7 @@
 <head><meta name="generator" content="Hexo 3.8.0">
   <meta charset="utf-8">
   
-  <title>game_archive | heresink&#39;s blog</title>
+  <title>IGB网卡工作原理 | heresink&#39;s blog</title>
   <meta name="author" content="heresink">
   
   <meta name="description" content="heresink&#39;s blog | C | Embedded Linux | Electronic">
@@ -11,7 +11,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
-  <meta property="og:title" content="game_archive">
+  <meta property="og:title" content="IGB网卡工作原理">
   <meta property="og:site_name" content="heresink&#39;s blog">
 
   
@@ -24,7 +24,7 @@
   <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
   
 
-<link rel="stylesheet" type="text/css" href="/assets/css/DPlayer.min.css"><script src="/assets/js/DPlayer.min.js"></script></head>
+</head>
 </html>
 
 <body>
@@ -51,20 +51,33 @@
     <header>
       
         <div class="icon"></div>
-        <time datetime="2019-05-01T03:19:50.000Z"><a href="/2019/05/01/game-archive/">2019-05-01</a></time>
+        <time datetime="2019-06-14T14:52:54.000Z"><a href="/2019/06/14/IGB网卡工作原理/">2019-06-14</a></time>
       
       
   
-    <h1 class="title">game_archive</h1>
+    <h1 class="title">IGB网卡工作原理</h1>
   
 
     </header>
     <div class="entry">
       
-        <p>game video archive<br><a id="more"></a></p>
-<h1 id="2018-12-22"><a href="#2018-12-22" class="headerlink" title="2018/12/22"></a>2018/12/22</h1><div id="dplayer0" class="dplayer hexo-tag-dplayer-mark" style="margin-bottom: 20px;"></div><script>(function(){var player = new DPlayer({"container":document.getElementById("dplayer0"),"theme":"#FADFA3","loop":true,"video":{"url":"https://here-video-1252010234.cos.ap-guangzhou.myqcloud.com/%E6%BA%90%E6%B0%8F_18-12-22.mp4","pic":"https://here-video-1252010234.cos.ap-guangzhou.myqcloud.com/%E6%BA%90%E6%B0%8F_18-12-22.mp4.jpg?"}});window.dplayers||(window.dplayers=[]);window.dplayers.push(player);})()</script>
-<h1 id="2018-12-24"><a href="#2018-12-24" class="headerlink" title="2018/12/24"></a>2018/12/24</h1><div id="dplayer1" class="dplayer hexo-tag-dplayer-mark" style="margin-bottom: 20px;"></div><script>(function(){var player = new DPlayer({"container":document.getElementById("dplayer1"),"theme":"#FADFA3","loop":true,"video":{"url":"https://here-video-1252010234.cos.ap-guangzhou.myqcloud.com/%E6%BA%90%E6%B0%8F_double_kill_18-12-24.mp4","pic":"https://here-video-1252010234.cos.ap-guangzhou.myqcloud.com/%E6%BA%90%E6%B0%8F_double_kill_18-12-24.mp4.jpg?"}});window.dplayers||(window.dplayers=[]);window.dplayers.push(player);})()</script>
-<h1 id="2019-05-01"><a href="#2019-05-01" class="headerlink" title="2019/05/01"></a>2019/05/01</h1><div id="dplayer2" class="dplayer hexo-tag-dplayer-mark" style="margin-bottom: 20px;"></div><script>(function(){var player = new DPlayer({"container":document.getElementById("dplayer2"),"theme":"#FADFA3","loop":true,"video":{"url":"https://here-video-1252010234.cos.ap-guangzhou.myqcloud.com/%E6%BA%90%E6%B0%8Fquad_kill_19-05-01_10-54-01.mp4","pic":"https://here-video-1252010234.cos.ap-guangzhou.myqcloud.com/%E6%BA%90%E6%B0%8Fquad_kill_19-05-01_10-54-01.mp4.jpg?"}});window.dplayers||(window.dplayers=[]);window.dplayers.push(player);})()</script>
+        <p>主要涉及Intel IGB 网卡接收/发送数据包的原理<br><a id="more"></a></p>
+<h2 id="IGB网卡"><a href="#IGB网卡" class="headerlink" title="IGB网卡"></a>IGB网卡</h2><p>IGB网卡包含I210, I211, I350等千兆网卡, 用于替代老旧的e1000, e1000e网卡</p>
+<h2 id="接收"><a href="#接收" class="headerlink" title="接收"></a>接收</h2><p>接收路径主要关注3个点</p>
+<p>网卡硬件数据包buffer(数据包FIFO), 网卡硬件接收描述符队列, 主机接收描述符队列(Ring buffer)</p>
+<p>网卡收到包之后会将数据包放入数据包buffer<br>然后获取一个可用的接收描述符, 接收描述符里有一个映射后的DMA地址, 网卡将数据包通过DMA传输到指定地址处</p>
+<p>这样就完成了数据包从网卡数据包buffer传递到主机内存的整个操作</p>
+<p>有些网卡的数据包buffer是一个FIFO, 即可以存放多个数据包(比如ixgbe网卡), 但一般都只是一个临时存放处(igb网卡很可能是)</p>
+<p>放到网卡硬件数据包buffer里之后网卡就会从网卡接收描述符队列中取足够数量的接收描述符，获取的接收描述符的数量取决于接收到的数据包的大小以及接收描述符指向的buffer大小</p>
+<p>比如每个接收描述符指向的buffer大小为2KB, 接收到的数据包长度是8KB, 则需要4个接收描述符才能完整接收此数据包</p>
+<p>主机接收描述符队列和网卡的硬件接收描述符队列的结类似 但是由于其占用主机内存, 所以数量上可以有很多个(最大数量取决于网卡的接收描述符长度寄存器, 这个用于描述主机内存里的接收描述符队列长度)</p>
+<p>这个队列里的每个元素不是数据包, 而是接收描述符, 接收描述符里有指向数据包buffer的指针<br>接收描述符里还有一些描述数据包的字段</p>
+<p>主机接收描述符队列由网卡的一些寄存器描述<br>RDT和RDH表示头指针和尾指针, 头指针被硬件使用, 尾指针被软件使用</p>
+<p>当软件处理了尾指针后面的接收描述符后, 将内存地址映射成DMA地址然后写入尾指针后面的接收描述符, 并将尾指针向后移动</p>
+<p>当硬件拷贝数据包到当前头指针指向的接收描述符里的DMA地址并且回写一些控制信息后, 头指针向后移动</p>
+<p>到达接收描述符队列的队列尾之后又绕回队列头, 形成环形队列</p>
+<p>To be continue</p>
+<h2 id="发送"><a href="#发送" class="headerlink" title="发送"></a>发送</h2><p>发送和接收类似, 逆过程而已</p>
 
       
     </div>
@@ -74,7 +87,7 @@
         
   
   <div class="tags">
-    <a href="/tags/game/">game</a>
+    <a href="/tags/MAC/">MAC</a>, <a href="/tags/Ethernet/">Ethernet</a>
   </div>
 
         
